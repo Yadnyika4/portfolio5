@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trendy Tees - Your Go-To Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <style>
+      /* Custom styles for the shopping site, extending Tailwind */
+      body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #f5f5f5; /* soft-neutral-100 */
+        color: #212121; /* soft-neutral-900 */
+      }
+      .dark body {
+        background-color: #212121; /* soft-neutral-900 */
+        color: #f5f5f5; /* soft-neutral-100 */
+      }
+      .product-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+      }
+      .btn-primary {
+        background-color: #00a3c0; /* vibrant-blue-500 */
+        border-color: #00a3c0;
+      }
+      .btn-primary:hover {
+        background-color: #008ba3; /* vibrant-blue-600 */
+        border-color: #008ba3;
+      }
+      .btn-secondary {
+        background-color: #ff4d4d; /* vibrant-coral-500 */
+        border-color: #ff4d4d;
+      }
+      .btn-secondary:hover {
+        background-color: #e64545; /* vibrant-coral-600 */
+        border-color: #e64545;
+      }
+      .cart-sidebar {
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+      }
+      .cart-sidebar.open {
+        transform: translateX(0);
+      }
+      .overlay {
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 40; /* Below sidebar, above content */
+      }
+      /* Custom styles for carousel to ensure full width and proper scrolling */
+      .carousel-item {
+        width: 100%; /* Each item takes full width of the carousel container */
+      }
+      .color-swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: border-color 0.2s ease-in-out;
+      }
+      .color-swatch.selected {
+        border-color: #00a3c0; /* vibrant-blue-500 */
+      }
+    </style>
+    <script>
+      // Tailwind CSS Configuration - Reusing from portfolio for consistency
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              poppins: ["Poppins", "sans-serif"],
+              roboto: ["Roboto", "sans-serif"],
+            },
+            colors: {
+              "vibrant-blue": {
+                50: "#e0f2f7",
+                100: "#b2e2ec",
+                200: "#84d2e1",
+                300: "#56c2d6",
+                400: "#28b2cb",
+                500: "#00a3c0",
+                600: "#008ba3",
+                700: "#007287",
+                800: "#00596a",
+                900: "#00404d",
+              },
+              "vibrant-coral": {
+                50: "#fff1ed",
+                100: "#ffe0d2",
+                200: "#ffc6b5",
+                300: "#ffa193",
+                400: "#ff7771",
+                500: "#ff4d4d",
+                600: "#e64545",
+                700: "#cc3d3d",
+                800: "#b33636",
+                900: "#992e2e",
+              },
+              "soft-neutral": {
+                50: "#fcfcfc",
+                100: "#f5f5f5",
+                200: "#ededed",
+                300: "#e0e0e0",
+                400: "#bdbdbd",
+                500: "#9e9e9e",
+                600: "#757575",
+                700: "#616161",
+                800: "#424242",
+                900: "#212121",
+              },
+            },
+          },
+        },
+      };
+
+      // Cart Logic and UI functions
+      let cart = []; // Stores items in the cart
+      let selectedProduct = null; // Stores the currently selected product in the modal
+
+      // Function to save cart to localStorage
+      function saveCart() {
+        localStorage.setItem('shoppingCart', JSON.stringify(cart));
+      }
+
+      // Function to load cart from localStorage
+      function loadCart() {
+        const storedCart = localStorage.getItem('shoppingCart');
+        if (storedCart) {
+          cart = JSON.parse(storedCart);
+        }
+      }
+
+      // Function to update the cart UI
+      function updateCartUI() {
+        const cartItemsContainer = document.getElementById('cart-items');
+        const cartTotalSpan = document.getElementById('cart-total');
+        cartItemsContainer.innerHTML = ''; // Clear current items
+
+        let total = 0;
+        if (cart.length === 0) {
+          cartItemsContainer.innerHTML = '<p class="text-center text-soft-neutral-500 dark:text-soft-neutral-400">Your cart is empty.</p>';
+        } else {
+          cart.forEach((item, index) => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'flex justify-between items-center bg-soft-neutral-50 dark:bg-soft-neutral-800 p-3 rounded-md shadow-sm mb-2';
+            itemElement.innerHTML = `
+              <div class="flex-grow">
+                <p class="font-semibold text-soft-neutral-800 dark:text-soft-neutral-100">${item.name}</p>
+                <p class="text-sm text-soft-neutral-600 dark:text-soft-neutral-300">
+                  ₹${item.price.toFixed(2)} x ${item.quantity}
+                  ${item.selectedSize ? `<span class="ml-2 badge badge-info">${item.selectedSize}</span>` : ''}
+                  ${item.selectedColor ? `<span class="ml-2 badge" style="background-color:${item.selectedColor}; color: ${getContrastColor(item.selectedColor)};">${item.selectedColor}</span>` : ''}
+                </p>
+              </div>
+              <button class="btn btn-sm btn-secondary text-white rounded-full" onclick="removeFromCart(${index})">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            `;
+            cartItemsContainer.appendChild(itemElement);
+            total += item.price * item.quantity;
+          });
+        }
+        cartTotalSpan.innerText = total.toFixed(2);
+        saveCart(); // Save cart state after updating UI
+      }
+
+      // Helper function to get contrast color for badge text
+      function getContrastColor(hexcolor){
+        // If a color name, just return black or white for now
+        if (!hexcolor.startsWith('#')) return 'black';
+
+        var r = parseInt(hexcolor.substr(1,2),16);
+        var g = parseInt(hexcolor.substr(3,2),16);
+        var b = parseInt(hexcolor.substr(5,2),16);
+        var y = ((r*299)+(g*587)+(b*114))/1000;
+        return (y >= 128) ? 'black' : 'white';
+      }
+
+      // Function to add a product to the cart
+      function addToCart(productId, name, price, selectedSize, selectedColor) {
+        const existingItem = cart.find(item => item.id === productId && item.selectedSize === selectedSize && item.selectedColor === selectedColor);
+        if (existingItem) {
+          existingItem.quantity++;
+        } else {
+          cart.push({ id: productId, name, price, quantity: 1, selectedSize, selectedColor });
+        }
+        updateCartUI();
+        showNotification(`${name} (${selectedSize || 'N/A'}, ${selectedColor || 'N/A'}) added to cart!`);
+      }
+
+      // Function to remove a product from the cart
+      function removeFromCart(index) {
+        const removedItemName = cart[index].name;
+        cart.splice(index, 1);
+        updateCartUI();
+        showNotification(`${removedItemName} removed from cart.`);
+      }
+
+      // Function to toggle cart sidebar visibility
+      function toggleCartSidebar() {
+        const cartSidebar = document.getElementById('cart-sidebar');
+        const overlay = document.getElementById('overlay');
+        cartSidebar.classList.toggle('open');
+        overlay.classList.toggle('hidden');
+      }
+
+      // Function to open product details modal
+      function openProductModal(image, name, description, price, sizes, colors) {
+        selectedProduct = { id: name.replace(/\s/g, ''), name, price, selectedSize: null, selectedColor: null };
+
+        document.getElementById('productDetailImage').src = image;
+        document.getElementById('productDetailImage').alt = name;
+        document.getElementById('productDetailName').innerText = name;
+        document.getElementById('productDetailDescription').innerText = description;
+        document.getElementById('productDetailPrice').innerText = `₹${price.toFixed(2)}`;
+
+        const sizeContainer = document.getElementById('productDetailSizes');
+        sizeContainer.innerHTML = '';
+        if (sizes && sizes.length > 0) {
+          sizes.forEach(size => {
+            const button = document.createElement('button');
+            button.className = 'badge badge-outline text-soft-neutral-700 dark:text-soft-neutral-300 border-soft-neutral-400 dark:border-soft-neutral-500 cursor-pointer hover:bg-vibrant-blue-100 dark:hover:bg-vibrant-blue-800';
+            button.innerText = size;
+            button.onclick = () => {
+              // Remove selected class from all size buttons
+              document.querySelectorAll('#productDetailSizes button').forEach(btn => btn.classList.remove('selected', 'bg-vibrant-blue-500', 'text-white'));
+              // Add selected class to the clicked button
+              button.classList.add('selected', 'bg-vibrant-blue-500', 'text-white');
+              selectedProduct.selectedSize = size;
+            };
+            sizeContainer.appendChild(button);
+          });
+          sizeContainer.classList.remove('hidden');
+        } else {
+          sizeContainer.classList.add('hidden');
+        }
+
+        const colorContainer = document.getElementById('productDetailColors');
+        colorContainer.innerHTML = '';
+        if (colors && colors.length > 0) {
+          colors.forEach(color => {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.title = color;
+            swatch.onclick = () => {
+              // Remove selected class from all color swatches
+              document.querySelectorAll('#productDetailColors .color-swatch').forEach(s => s.classList.remove('selected'));
+              // Add selected class to the clicked swatch
+              swatch.classList.add('selected');
+              selectedProduct.selectedColor = color;
+            };
+            colorContainer.appendChild(swatch);
+          });
+          document.getElementById('productDetailColorsSection').classList.remove('hidden');
+        } else {
+          document.getElementById('productDetailColorsSection').classList.add('hidden');
+        }
+
+        // Set up "Add to Cart" button in modal
+        const addToCartModalBtn = document.getElementById('addToCartModalBtn');
+        addToCartModalBtn.onclick = () => {
+          if (!selectedProduct.selectedSize && sizes && sizes.length > 0) {
+            showNotification('Please select a size.');
+            return;
+          }
+          if (!selectedProduct.selectedColor && colors && colors.length > 0) {
+            showNotification('Please select a color.');
+            return;
+          }
+          addToCart(selectedProduct.id, selectedProduct.name, selectedProduct.price, selectedProduct.selectedSize, selectedProduct.selectedColor);
+          document.getElementById('product_detail_modal').close(); // Close modal after adding
+        };
+
+        // Set up "Buy Now" button in modal
+        const buyNowModalBtn = document.getElementById('buyNowModalBtn');
+        buyNowModalBtn.onclick = () => {
+          if (!selectedProduct.selectedSize && sizes && sizes.length > 0) {
+            showNotification('Please select a size.');
+            return;
+          }
+          if (!selectedProduct.selectedColor && colors && colors.length > 0) {
+            showNotification('Please select a color.');
+            return;
+          }
+          buyNow(selectedProduct);
+          document.getElementById('product_detail_modal').close(); // Close modal after buying
+        };
+
+        document.getElementById('product_detail_modal').showModal();
+      }
+
+      // Function for "Buy Now"
+      function buyNow(product) {
+        // Clear cart and add only the current product
+        cart = [{
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          selectedSize: product.selectedSize,
+          selectedColor: product.selectedColor
+        }];
+        updateCartUI();
+        generateBill(); // Immediately generate bill for the single item
+        showNotification(`Buying ${product.name} now!`);
+      }
+
+      // Function to generate and display the bill
+      function generateBill() {
+        const billItemsContainer = document.getElementById('bill-items');
+        const billTotalSpan = document.getElementById('bill-total');
+        billItemsContainer.innerHTML = '';
+
+        let total = 0;
+        if (cart.length === 0) {
+          billItemsContainer.innerHTML = '<p class="text-center text-soft-neutral-500 dark:text-soft-neutral-400">Your cart is empty. Nothing to bill.</p>';
+        } else {
+          cart.forEach(item => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'flex justify-between items-center py-2 border-b border-soft-neutral-200 dark:border-soft-neutral-600';
+            itemElement.innerHTML = `
+              <div>
+                <p class="font-semibold text-soft-neutral-800 dark:text-soft-neutral-100">${item.name}</p>
+                <p class="text-sm text-soft-neutral-600 dark:text-soft-neutral-300">
+                  ₹${item.price.toFixed(2)} x ${item.quantity}
+                  ${item.selectedSize ? `<span class="ml-2 text-xs text-soft-neutral-500">Size: ${item.selectedSize}</span>` : ''}
+                  ${item.selectedColor ? `<span class="ml-2 text-xs text-soft-neutral-500">Color: ${item.selectedColor}</span>` : ''}
+                </p>
+              </div>
+              <span class="font-semibold text-soft-neutral-800 dark:text-soft-neutral-100">₹${(item.price * item.quantity).toFixed(2)}</span>
+            `;
+            billItemsContainer.appendChild(itemElement);
+            total += item.price * item.quantity;
+          });
+        }
+        billTotalSpan.innerText = total.toFixed(2);
+        document.getElementById('bill_modal').showModal();
+      }
+
+      // Function to submit a review (placeholder)
+      function submitReview() {
+        const reviewText = document.getElementById('reviewText').value;
+        const reviewRating = document.getElementById('reviewRating').value;
+        const reviewColor = document.getElementById('reviewColor').value; // Get selected color for review
+
+        if (!reviewText || !reviewRating) {
+          showNotification('Please enter your review and select a rating.');
+          return;
+        }
+
+        // In a real application, you would send this data to a server
+        console.log('Review Submitted:', {
+          product: selectedProduct ? selectedProduct.name : 'Unknown Product',
+          rating: reviewRating,
+          color: reviewColor,
+          review: reviewText
+        });
+        showNotification('Thank you for your review!');
+        document.getElementById('reviewText').value = ''; // Clear textarea
+        document.getElementById('reviewRating').value = ''; // Clear rating
+        document.getElementById('reviewColor').value = ''; // Clear color
+        document.getElementById('product_detail_modal').close(); // Close modal after review
+      }
+
+
+      // Notification / Toast Message
+      function showNotification(message) {
+        const notificationContainer = document.getElementById('notification-container');
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-info shadow-lg mb-2';
+        toast.innerHTML = `
+          <div>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>${message}</span>
+          </div>
+        `;
+        notificationContainer.appendChild(toast);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+      }
+
+      // Theme toggle (reusing from portfolio)
+      function toggleDarkMode() {
+        const html = document.documentElement;
+        if (html.getAttribute("data-theme") === "light") {
+          html.setAttribute("data-theme", "dark");
+          html.classList.add("dark");
+          localStorage.setItem("theme", "dark");
+        } else {
+          html.setAttribute("data-theme", "light");
+          html.classList.remove("dark");
+          localStorage.setItem("theme", "light");
+        }
+      }
+
+      // DOM Content Loaded
+      document.addEventListener('DOMContentLoaded', () => {
+        // Apply saved theme on load
+        const savedTheme = localStorage.getItem("theme") || "light";
+        const html = document.documentElement;
+        html.setAttribute("data-theme", savedTheme);
+        if (savedTheme === "dark") {
+          html.classList.add("dark");
+          const themeToggle = document.querySelector('.theme-controller');
+          if (themeToggle) {
+              themeToggle.checked = true;
+          }
+        }
+
+        loadCart(); // Load cart when page loads
+        updateCartUI(); // Update UI with loaded cart items
+      });
+    </script>
+  </head>
+  <body class="bg-soft-neutral-100 dark:bg-soft-neutral-900 text-soft-neutral-800 dark:text-soft-neutral-100 transition-colors font-roboto">
+
+    <div id="notification-container" class="toast toast-end fixed top-4 right-4 z-[1000]"></div>
+
+    <div class="navbar bg-gradient-to-r from-vibrant-blue-500 to-vibrant-blue-700 dark:from-vibrant-blue-800 dark:to-vibrant-blue-900 text-white shadow-lg fixed w-full z-50">
+      <div class="navbar-start">
+        <div class="dropdown">
+          <div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h8m-8 6h16"
+              />
+            </svg>
+          </div>
+          <ul
+            tabindex="0"
+            class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52 text-soft-neutral-800 dark:text-soft-neutral-100 dark:bg-soft-neutral-700"
+          >
+            <li><a href="index.html">Home</a></li>
+            <li><a href="#">Products</a></li>
+            <li><a onclick="toggleCartSidebar()">Cart</a></li>
+            <li>
+              <label class="flex cursor-pointer gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="5" />
+                  <path
+                    d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"
+                  />
+                </svg>
+                <input
+                  type="checkbox"
+                  value="dark"
+                  class="toggle theme-controller"
+                  onclick="toggleDarkMode()"
+                />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              </label>
+            </li>
+          </ul>
+        </div>
+        <a class="btn btn-ghost text-xl font-poppins text-white hover:bg-transparent" href="#">Trendy Tees</a>
+      </div>
+      <div class="navbar-center hidden lg:flex">
+        <ul class="menu menu-horizontal px-1 font-poppins text-lg">
+          <li><a href="index.html" class="hover:text-vibrant-blue-200">Home</a></li>
+          <li><a href="#" class="hover:text-vibrant-blue-200">Products</a></li>
+          <li><a onclick="toggleCartSidebar()" class="hover:text-vibrant-blue-200">Cart</a></li>
+        </ul>
+      </div>
+      <div class="navbar-end">
+        <label class="swap swap-rotate mr-2">
+          <input
+            type="checkbox"
+            value="dark"
+            class="theme-controller"
+            onclick="toggleDarkMode()"
+          />
+          <svg
+            class="swap-on fill-current w-8 h-8"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM18.36,6.34a1,1,0,0,0-1.41-1.41l-.71.71a1,1,0,0,0,1.41,1.41ZM12,19a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM7.05,6.34l-.71-0.71A1,1,0,0,0,6.34,5.64L7.05,4.93a1,1,0,0,0-1.41-1.41L4.93,4.22a1,1,0,0,0,0,1.41L5.64,6.34A1,1,0,0,0,7.05,6.34ZM19.07,4.93l-.71.71a1,1,0,0,0,1.41,1.41l.71-.71A1,1,0,0,0,19.07,4.93ZM17.66,17.66a1,1,0,0,0-.71.71l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM20,11H21a1,1,0,0,0,0-2H20a1,1,0,0,0,0,2Z"
+            />
+          </svg>
+          <svg
+            class="swap-off fill-current w-8 h-8"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,0,.26-1.39,1,1,0,0,0-1-1.18H2.22A1,1,0,0,0,1.5,4.36,10.38,10.38,0,1,0,21.64,13Z"
+            />
+          </svg>
+        </label>
+      </div>
+    </div>
+
+    <main class="max-w-6xl mx-auto my-10 p-6 pt-24">
+      <section class="hero bg-gradient-to-br from-vibrant-coral-100 to-vibrant-coral-200 dark:from-vibrant-coral-900 dark:to-vibrant-coral-800 text-center rounded-lg shadow-lg p-8 mb-10">
+        <div class="hero-content flex-col">
+          <h1 class="text-5xl font-poppins font-bold text-vibrant-coral-800 dark:text-vibrant-coral-200">
+            Trendy T-shirt for Everyone!
+          </h1>
+          <p class="py-6 text-lg text-vibrant-coral-700 dark:text-vibrant-coral-300">
+            Discover our latest collection of stylish and comfortable T-shirts.
+          </p>
+          <button class="btn bg-vibrant-blue-500 text-white border-none hover:bg-vibrant-blue-600 focus:outline-none focus:ring-2 focus:ring-vibrant-blue-400 focus:ring-opacity-75 font-poppins text-lg transition-all duration-300">
+            Shop Now
+          </button>
+        </div>
+      </section>
+
+      <section id="products" class="mb-10">
+        <h2 class="text-vibrant-blue-700 dark:text-vibrant-blue-300 text-3xl font-poppins font-semibold border-b-2 border-vibrant-blue-500 pb-2 mb-6">
+          Our Products
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('tshirtgraphic.jpg', 'Graphic Print Tee', 'A comfortable cotton tee with a unique graphic print. Perfect for casual wear.', 425.99, ['S', 'M', 'L', 'XL'], ['#000000', '#FFFFFF', '#FF0000'])">
+              <img src="tshirtgraphic.jpg" alt="Graphic Print Tee" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Graphic Print Tee</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹225.99</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('tshirtgraphic.jpg', 'Graphic Print Tee', 'A comfortable cotton tee with a unique graphic print. Perfect for casual wear.', 425.99, ['S', 'M', 'L', 'XL'], ['#000000', '#FFFFFF', '#FF0000'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('tshirtvneck.jpg', 'Classic V-Neck Tee', 'Soft and breathable V-neck tee, ideal for everyday comfort. Available in multiple colors.', 219.99, ['S', 'M', 'L'], ['#0000FF', '#FFFF00', '#800080'])">
+              <img src="tshirtvneck.jpg" alt="Classic V-Neck Tee" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Classic V-Neck Tee</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹219.99</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('tshirtvneck.jpg', 'Classic V-Neck Tee', 'Soft and breathable V-neck tee, ideal for everyday comfort. Available in multiple colors.', 219.99, ['S', 'M', 'L'], ['#0000FF', '#FFFF00', '#800080'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('hoodiecozy.jpg', 'Cozy Hoodie', 'Warm and stylish hoodie for those chilly evenings. Made from premium fleece.', 445.00, ['M', 'L', 'XL'], ['#A9A9A9', '#8B4513'])">
+              <img src="hoodiecozy.jpg" alt="Cozy Hoodie" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Cozy Hoodie</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹445.00</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('hoodiecozy.jpg', 'Cozy Hoodie', 'Warm and stylish hoodie for those chilly evenings. Made from premium fleece.', 445.00, ['M', 'L', 'XL'], ['#A9A9A9', '#8B4513'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('tshirtlongsleeve.jpg', 'Long Sleeve Comfort', 'A versatile long sleeve tee for layering or standalone wear. Soft organic cotton.', 332.50, ['S', 'M', 'L', 'XL'], ['#2F4F4F', '#D2B48C'])">
+              <img src="tshirtlongsleeve.jpg" alt="Long Sleeve Comfort" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Long Sleeve Comfort</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹332.50</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('tshirtlongsleeve.jpg', 'Long Sleeve Comfort', 'A versatile long sleeve tee for layering or standalone wear. Soft organic cotton.', 332.50, ['S', 'M', 'L', 'XL'], ['#2F4F4F', '#D2B48C'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('poloshirt.jpg', 'Sporty Polo Shirt', 'Classic polo shirt with moisture-wicking fabric, perfect for active days.', 339.99, ['M', 'L', 'XL'], ['#008000', '#800000'])">
+              <img src="poloshirt.jpg" alt="Sporty Polo Shirt" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Sporty Polo Shirt</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹339.99</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('poloshirt.jpg', 'Sporty Polo Shirt', 'Classic polo shirt with moisture-wicking fabric, perfect for active days.', 339.99, ['M', 'L', 'XL'], ['#008000', '#800000'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('tanktop.jpg', 'Lightweight Tank Top', 'Breathable tank top for workouts or hot summer days. Quick-dry material.', 115.00, ['S', 'M', 'L'], ['#ADD8E6', '#FFB6C1'])">
+              <img src="tanktop.jpg" alt="Lightweight Tank Top" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Lightweight Tank Top</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹115.00</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('tanktop.jpg', 'Lightweight Tank Top', 'Breathable tank top for workouts or hot summer days. Quick-dry material.', 115.00, ['S', 'M', 'L'], ['#ADD8E6', '#FFB6C1'])">View Details</button>
+            </div>
+          </div>
+
+          <div class="product-card card bg-white dark:bg-soft-neutral-700 p-4 rounded-lg shadow-md">
+            <figure class="mb-4 cursor-pointer" onclick="openProductModal('hoodiezip.jpg', 'Full-Zip Hoodie', 'Convenient full-zip hoodie with soft interior, perfect for layering.', 549.99, ['M', 'L', 'XL'], ['#696969', '#DDA0DD'])">
+              <img src="hoodiezip.jpg" alt="Full-Zip Hoodie" class="rounded-lg object-cover w-full h-48" loading="lazy" />
+            </figure>
+            <h3 class="card-title text-xl font-poppins font-semibold text-vibrant-blue-600 mb-2">Full-Zip Hoodie</h3>
+            <p class="text-soft-neutral-600 dark:text-soft-neutral-300 mb-2">₹549.99</p>
+            <div class="card-actions justify-end">
+              <button class="btn btn-primary text-white" onclick="openProductModal('hoodiezip.jpg', 'Full-Zip Hoodie', 'Convenient full-zip hoodie with soft interior, perfect for layering.', 549.99, ['M', 'L', 'XL'], ['#696969', '#DDA0DD'])">View Details</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="testimonials" class="mb-10 p-6 bg-vibrant-blue-50 dark:bg-vibrant-blue-900 rounded-lg shadow-md">
+        <h2 class="text-vibrant-blue-700 dark:text-vibrant-blue-300 text-3xl font-poppins font-semibold border-b-2 border-vibrant-blue-500 pb-2 mb-6 text-center">
+          Customer Reviews
+        </h2>
+        <div class="carousel w-full rounded-box shadow-lg">
+          <div id="item1" class="carousel-item w-full flex justify-center p-4">
+            <div class="card w-full max-w-lg bg-white dark:bg-soft-neutral-700 shadow-xl text-center p-6">
+              <div class="card-body items-center text-center">
+                <p class="text-lg italic text-soft-neutral-700 dark:text-soft-neutral-200 mb-4">
+                  "Absolutely love the quality of these tees! They are so comfortable and the prints are vibrant. Fast delivery too!"
+                </p>
+                <div class="avatar">
+                  <div class="w-16 rounded-full">
+                    <img src="https://placehold.co/100x100/e0f2f7/00404d?text=User1" alt="Customer Avatar 1" />
+                  </div>
+                </div>
+                <h3 class="font-semibold text-vibrant-blue-600 dark:text-vibrant-blue-200 mt-2">Priya Sharma</h3>
+                <p class="text-sm text-soft-neutral-500 dark:text-soft-neutral-400">Verified Buyer</p>
+              </div>
+            </div>
+          </div>
+          <div id="item2" class="carousel-item w-full flex justify-center p-4">
+            <div class="card w-full max-w-lg bg-white dark:bg-soft-neutral-700 shadow-xl text-center p-6">
+              <div class="card-body items-center text-center">
+                <p class="text-lg italic text-soft-neutral-700 dark:text-soft-neutral-200 mb-4">
+                  "Great selection and easy to navigate website. My new favorite shop for casual wear. Highly recommend!"
+                </p>
+                <div class="avatar">
+                  <div class="w-16 rounded-full">
+                    <img src="https://placehold.co/100x100/e0f2f7/00404d?text=User2" alt="Customer Avatar 2" />
+                  </div>
+                </div>
+                <h3 class="font-semibold text-vibrant-blue-600 dark:text-vibrant-blue-200 mt-2">Rahul Singh</h3>
+                <p class="text-sm text-soft-neutral-500 dark:text-soft-neutral-400">Fashion Enthusiast</p>
+              </div>
+            </div>
+          </div>
+          <div id="item3" class="carousel-item w-full flex justify-center p-4">
+            <div class="card w-full max-w-lg bg-white dark:bg-soft-neutral-700 shadow-xl text-center p-6">
+              <div class="card-body items-center text-center">
+                <p class="text-lg italic text-soft-neutral-700 dark:text-soft-neutral-200 mb-4">
+                  "The hoodie is super soft and fits perfectly. Excellent value for money. Will definitely buy again."
+                </p>
+                <div class="avatar">
+                  <div class="w-16 rounded-full">
+                    <img src="https://placehold.co/100x100/e0f2f7/00404d?text=User3" alt="Customer Avatar 3" />
+                  </div>
+                </div>
+                <h3 class="font-semibold text-vibrant-blue-600 dark:text-vibrant-blue-200 mt-2">Anjali Rao</h3>
+                <p class="text-sm text-soft-neutral-500 dark:text-soft-neutral-400">Happy Customer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-center w-full py-2 gap-2">
+          <a href="#item1" class="btn btn-xs">1</a>
+          <a href="#item2" class="btn btn-xs">2</a>
+          <a href="#item3" class="btn btn-xs">3</a>
+        </div>
+      </section>
+      </main>
+
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40" onclick="toggleCartSidebar()"></div>
+    <div id="cart-sidebar" class="cart-sidebar fixed top-0 right-0 h-full w-80 bg-white dark:bg-soft-neutral-800 shadow-lg p-6 z-50 flex flex-col">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-2xl font-poppins font-semibold text-vibrant-blue-700 dark:text-vibrant-blue-300">Your Cart</h3>
+        <button class="btn btn-sm btn-ghost" onclick="toggleCartSidebar()">✕</button>
+      </div>
+      <div id="cart-items" class="flex-grow overflow-y-auto mb-4 border-b border-soft-neutral-300 dark:border-soft-neutral-600 pb-4">
+        </div>
+      <div class="pt-4">
+        <div class="flex justify-between items-center font-bold text-lg mb-4">
+          <span>Total:</span>
+          <span>₹<span id="cart-total">0.00</span></span>
+        </div>
+        <button class="btn btn-primary w-full text-white mb-2" onclick="generateBill()">Generate Bill</button>
+        <button class="btn btn-secondary w-full text-white" onclick="cart = []; updateCartUI(); showNotification('Cart cleared!');">Clear Cart</button>
+      </div>
+    </div>
+
+    <dialog id="product_detail_modal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box bg-white dark:bg-soft-neutral-700 text-soft-neutral-800 dark:text-soft-neutral-100 p-6 rounded-lg shadow-xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            ✕
+          </button>
+        </form>
+        <figure class="mb-4">
+          <img
+            id="productDetailImage"
+            src=""
+            alt="Product Image"
+            class="w-full h-64 object-cover rounded-lg shadow-md"
+          />
+        </figure>
+        <h3 id="productDetailName" class="font-bold text-2xl text-vibrant-blue-600 dark:text-vibrant-blue-200 mb-2">
+          Product Name
+        </h3>
+        <p id="productDetailPrice" class="text-xl font-semibold text-vibrant-coral-600 dark:text-vibrant-coral-300 mb-4">₹0.00</p>
+        <p id="productDetailDescription" class="py-4 text-soft-neutral-700 dark:text-soft-neutral-200">
+          Product description goes here.
+        </p>
+        <div id="productDetailSizes" class="flex flex-wrap gap-2 mb-4">
+          </div>
+        <div id="productDetailColorsSection" class="mb-4 hidden">
+          <h4 class="font-semibold text-soft-neutral-700 dark:text-soft-neutral-200 mb-2">Colors:</h4>
+          <div id="productDetailColors" class="flex flex-wrap gap-2">
+            </div>
+        </div>
+
+        <div class="mt-6 border-t border-soft-neutral-300 dark:border-soft-neutral-600 pt-4">
+          <h4 class="font-semibold text-soft-neutral-700 dark:text-soft-neutral-200 mb-2">Write a Review:</h4>
+          <textarea id="reviewText" class="textarea textarea-bordered w-full mb-2 bg-soft-neutral-50 dark:bg-soft-neutral-800 text-soft-neutral-800 dark:text-soft-neutral-100" placeholder="Your review..."></textarea>
+          <div class="flex gap-2 mb-2">
+            <select id="reviewRating" class="select select-bordered w-full max-w-xs bg-soft-neutral-50 dark:bg-soft-neutral-800 text-soft-neutral-800 dark:text-soft-neutral-100">
+              <option value="" disabled selected>Select Rating</option>
+              <option value="5">⭐⭐⭐⭐⭐</option>
+              <option value="4">⭐⭐⭐⭐</option>
+              <option value="3">⭐⭐⭐</option>
+              <option value="2">⭐⭐</option>
+              <option value="1">⭐</option>
+            </select>
+            <input type="text" id="reviewColor" placeholder="Color reviewed (e.g., Red)" class="input input-bordered w-full bg-soft-neutral-50 dark:bg-soft-neutral-800 text-soft-neutral-800 dark:text-soft-neutral-100"/>
+          </div>
+          <button class="btn btn-info w-full text-white" onclick="submitReview()">Submit Review</button>
+        </div>
+
+        <div class="modal-action mt-4">
+          <button id="addToCartModalBtn" class="btn bg-vibrant-blue-600 text-white hover:bg-vibrant-blue-700">
+            Add to Cart
+          </button>
+          <button id="buyNowModalBtn" class="btn bg-vibrant-coral-600 text-white hover:bg-vibrant-coral-700">
+            Buy Now
+          </button>
+          <form method="dialog">
+            <button class="btn btn-ghost">Close</button>
+          </form>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="bill_modal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box bg-white dark:bg-soft-neutral-700 text-soft-neutral-800 dark:text-soft-neutral-100 p-6 rounded-lg shadow-xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            ✕
+          </button>
+        </form>
+        <h3 class="font-bold text-2xl text-vibrant-blue-600 dark:text-vibrant-blue-200 mb-4 text-center">Your Bill</h3>
+        <div id="bill-items" class="mb-4 max-h-60 overflow-y-auto">
+          </div>
+        <div class="border-t border-soft-neutral-300 dark:border-soft-neutral-600 pt-4 flex justify-between items-center font-bold text-xl">
+          <span>Total:</span>
+          <span>₹<span id="bill-total">0.00</span></span>
+        </div>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn btn-primary text-white">Close</button>
+          </form>
+        </div>
+      </div>
+    </dialog>
+
+
+    <footer class="footer footer-center p-6 bg-gradient-to-r from-vibrant-blue-500 to-vibrant-blue-700 dark:from-vibrant-blue-800 dark:to-vibrant-blue-900 text-white text-base-content">
+      <aside>
+        <p class="text-white">
+          &copy; 2025 Trendy Tees. All rights reserved.
+        </p>
+        <div class="flex gap-4 mt-2">
+          <a href="#" class="link link-hover text-white hover:text-vibrant-blue-200">About Us</a>
+          <a href="#" class="link link-hover text-white hover:text-vibrant-blue-200">Contact</a>
+          <a href="#" class="link link-hover text-white hover:text-vibrant-blue-200">Terms of Service</a>
+          <a href="#" class="link link-hover text-white hover:text-vibrant-blue-200">Privacy Policy</a>
+        </div>
+      </aside>
+    </footer>
+  </body>
+</html>
